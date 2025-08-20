@@ -20,12 +20,47 @@ return {
     -- Installs the debug adapters for you
     'mason-org/mason.nvim',
     'jay-babu/mason-nvim-dap.nvim',
+    'theHamsta/nvim-dap-virtual-text',
 
     -- Add your own debuggers here
     'leoluz/nvim-dap-go',
   },
   keys = {
-    -- Basic debugging keymaps, feel free to change to your liking!
+    {
+      '<leader>?',
+      function()
+        require('dapui').eval(nil, { enter = true })
+      end,
+      desc = 'Debug: Run last',
+    },
+    {
+      '<leader>gl',
+      function()
+        require('dap').run_last()
+      end,
+      desc = 'Debug: Run last',
+    },
+    {
+      '<leader>gc',
+      function()
+        require('dap').run_to_cursor()
+      end,
+      desc = 'Debug: Run to cursor',
+    },
+    {
+      '<F12>',
+      function()
+        require('dap').restart()
+      end,
+      desc = 'Debug: Restart',
+    },
+    {
+      '<F4>',
+      function()
+        require('dap').close()
+      end,
+      desc = 'Debug: Stop',
+    },
     {
       '<F5>',
       function()
@@ -80,6 +115,17 @@ return {
   config = function()
     local dap = require 'dap'
     local dapui = require 'dapui'
+    require('nvim-dap-virtual-text').setup {
+      display_callback = function(variable, _buf, _stack_frame, _node)
+        local max_len = 30
+        local text = '=' .. vim.inspect(variable.value)
+        if #text > max_len then
+          text = text:sub(1, max_len - 3) .. '...'
+        end
+
+        return text
+      end,
+    }
 
     require('mason-nvim-dap').setup {
       -- Makes a best effort to setup the various debuggers with

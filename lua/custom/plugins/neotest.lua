@@ -1,7 +1,7 @@
 return {
   'nvim-neotest/neotest',
   dependencies = {
-    'nvim-neotest/neotest-go',
+    'fredrikaverpil/neotest-golang',
     -- Your other test adapters here
   },
   keys = {
@@ -48,7 +48,15 @@ return {
     require('neotest').setup {
       -- your neotest config here
       adapters = {
-        require 'neotest-go',
+        require 'neotest-golang' {
+          env = {
+            KAFKA_ADDRESS = 'localhost:9092',
+            SQS_ADDRESS = 'http://127.0.0.1:4566',
+            S3_ADDRESS = 'http://127.0.0.1:4566',
+            DYNAMO_ADDRESS = 'http://127.0.0.1:4566',
+            ENV = 'local',
+          },
+        },
       },
     }
   end,
