@@ -91,6 +91,10 @@ vim.o.confirm = true
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
+-- Paste over a selection without yanking the replaced text; use P to also yank it
+vim.keymap.set('x', 'p', 'P', { desc = 'Paste without yanking the replaced text' })
+vim.keymap.set('x', 'P', 'p', { desc = 'Paste and yank the replaced text' })
+
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
