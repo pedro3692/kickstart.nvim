@@ -4,6 +4,7 @@ local env = {
   S3_ADDRESS = 'http://127.0.0.1:4566',
   DYNAMO_ADDRESS = 'http://127.0.0.1:4566',
   POSTGRES_ADDRESS = '127.0.0.1:5432',
+  VALKEY_ADDRESS = '127.0.0.1:6379',
   REDIS_NODE_1 = '127.0.0.1:7000',
   REDIS_NODE_2 = '127.0.0.1:7001',
   REDIS_NODE_3 = '127.0.0.1:7002',
@@ -15,43 +16,78 @@ local env = {
   DB_USERNAME = 'spectra',
   DB_PASSWORD = 'spectra',
   DB_DATABASE = 'spectradb',
+  -- overmind
+  VLAD_SECRETS = '{"secrets":{"databasepassword":{"value":"overmind"},"apikey":{"value":"degredo"}}}',
+}
+
+local adapter_config = {
+  runner = 'gotestsum',
+  sanitize_output = true,
+  go_test_args = {
+    '-v',
+    '-race',
+    '-count=1',
+    '-coverprofile=' .. vim.fn.getcwd() .. '/coverage.out',
+  },
+  warn_test_name_dupes = false,
+  env = vim.tbl_extend('force', vim.fn.environ(), env),
+  filter_dirs = {
+    '.git',
+    'node_modules',
+    '.venv',
+    'venv',
+    'vendor',
+  },
 }
 
 return {
   'nvim-neotest/neotest',
   dependencies = {
+    'nvim-neotest/nvim-nio',
+    'nvim-lua/plenary.nvim',
     {
       'fredrikaverpil/neotest-golang',
-      version = '*', -- Optional, but recommended; track releases
-      build = function()
-        vim.system({ 'go', 'install', 'gotest.tools/gotestsum@latest' }):wait() -- Optional, but recommended
-      end,
+      dependencies = {
+        'uga-rosa/utf8.nvim', -- sanitize output
+      },
     },
-    -- Your other test adapters here
+  },
+  opts = {
+    -- See all config options with :h neotest.Config
+    discovery = {
+      -- Drastically improve performance in ginormous projects by
+      -- only AST-parsing the currently opened buffer.
+      enabled = false,
+      -- Number of workers to parse files concurrently.
+      -- A value of 0 automatically assigns number based on CPU.
+      -- Set to 1 if experiencing lag.
+      concurrent = 0,
+    },
+    running = {
+      -- Run tests concurrently when an adapter provides multiple commands to run.
+      concurrent = true,
+    },
+    summary = {
+      -- Enable/disable animation of icons.
+      animated = true,
+    },
   },
   keys = {
     {
       '<leader>tt',
       function()
-        require('neotest').run.run {
-          adapters = {
-            require 'neotest-golang' {
-              env = vim.tbl_extend('force', vim.fn.environ(), env),
-            },
-          },
-        }
+        require('neotest').run.run()
       end,
       desc = '[T]est: runs the nearest [T]est',
     },
     {
       '<leader>tdt',
       function()
+        vim.env.GOFLAGS = '-tags=debug'
         require('neotest').run.run {
           strategy = 'dap',
           adapters = {
-            require 'neotest-golang' {
-              env = vim.tbl_extend('force', vim.fn.environ(), env),
-            },
+            require 'neotest-golang'(adapter_config),
           },
         }
       end,
@@ -93,9 +129,7 @@ return {
     require('neotest').setup {
       -- your neotest config here
       adapters = {
-        require 'neotest-golang' {
-          env = vim.tbl_extend('force', vim.fn.environ(), env),
-        },
+        require 'neotest-golang'(adapter_config),
       },
     }
   end,

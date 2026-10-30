@@ -141,6 +141,7 @@ return {
       ensure_installed = {
         -- Update this to ensure that you have the debuggers for the langs you want
         'delve',
+        'codelldb',
       },
     }
 
@@ -198,10 +199,13 @@ return {
     end
 
     dap.listeners.after.event_initialized['dapui_config'] = dapui.open
-    dap.listeners.before.event_terminated['dapui_config'] = dapui.close
-    dap.listeners.before.event_exited['dapui_config'] = dapui.close
+    -- uncomment if you what to close dapui when a debug session ends
+    -- dap.listeners.before.event_terminated['dapui_config'] = dapui.close
+    -- dap.listeners.before.event_exited['dapui_config'] = dapui.close
 
-    -- Install golang specific config
+    -- -- -------------------------------------------------------------
+    -- Go Configuration
+    -- -------------------------------------------------------------
     require('dap-go').setup {
       delve = {
         -- On Windows delve must be run attached or it crashes.
@@ -209,6 +213,75 @@ return {
         detached = vim.fn.has 'win32' == 0,
       },
     }
+
+    -- -------------------------------------------------------------
+    -- Odin Configuration (via CodeLLDB)
+    -- -------------------------------------------------------------
+    local mason_registry = require 'mason-registry'
+    local codelldb_path = nil
+
+    if mason_registry.is_installed 'codelldb' then
+      local pkg = mason_registry.get_package 'codelldb'
+      local install_path = pkg:get_install_path()
+      local extension_path = install_path .. '/extension/'
+      codelldb_path = extension_path .. 'adapter/codelldb'
+      if vim.fn.has 'win32' == 1 then
+        codelldb_path = codelldb_path .. '.exe'
+      end
+    else
+      -- Fallback to system PATH binary
+      codelldb_path = 'codelldb'
+    end
+
+    dap.adapters.codelldb = {
+      type = 'server',
+      port = '${port}',
+      executable = {
+        command = codelldb_path,
+        args = { '--port', '${port}' },
+      },
+    }
+
+    dap.configurations.odin = {
+      {
+        name = 'Odin: Launch Executable',
+        type = 'codelldb',
+        request = 'launch',
+        program = function()
+          return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
+        end,
+        cwd = '${workspaceFolder}',
+        stopOnEntry = false,
+        args = function()
+          local input = vim.fn.input 'CLI arguments (optional): '
+          if input == '' then
+            return {}
+          end
+          return vim.split(input, ' ')
+        end,
+      },
+      {
+        name = 'Odin: Build & Debug Current Package',
+        type = 'codelldb',
+        request = 'launch',
+        preRun = function()
+          local out_bin = vim.fn.getcwd() .. '/bin_debug'
+          local build_cmd = string.format('odin build . -debug -out:%s', vim.fn.shellescape(out_bin))
+          vim.notify('Building Odin package...', vim.log.levels.INFO)
+          local res = vim.fn.system(build_cmd)
+          if vim.v.shell_error ~= 0 then
+            vim.notify('Odin build error:\n' .. res, vim.log.levels.ERROR)
+            return nil
+          end
+        end,
+        program = function()
+          return vim.fn.getcwd() .. '/bin_debug'
+        end,
+        cwd = '${workspaceFolder}',
+        stopOnEntry = false,
+      },
+    }
+
     require('dap').set_log_level 'DEBUG'
   end,
 }

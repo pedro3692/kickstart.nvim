@@ -350,7 +350,15 @@ require('lazy').setup({
       local builtin = require 'telescope.builtin'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
-      vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>sf', function()
+        builtin.find_files {
+          hidden = true,
+          no_ignore = true,
+          no_ignore_parent = true,
+        }
+      end, { desc = '[S]earch [F]iles (all files)' })
+      -- Fast, git-only
+      vim.keymap.set('n', '<leader>sF', builtin.git_files, { desc = '[S]earch [F]iles (git)' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
@@ -472,6 +480,10 @@ require('lazy').setup({
           -- or a suggestion from your LSP for this to activate.
           map('ga', vim.lsp.buf.code_action, '[G]oto Code [A]ction', { 'n', 'x' })
 
+          -- Execute a code lens, usually your cursor needs to be on top of an error
+          -- or a suggestion from your LSP for this to activate.
+          map('gl', vim.lsp.codelens.run, '[G]oto Code [L]ens', { 'n', 'x' })
+
           -- Find references for the word under your cursor.
           map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
 
@@ -528,6 +540,15 @@ require('lazy').setup({
               buffer = event.buf,
               group = highlight_augroup,
               callback = vim.lsp.buf.clear_references,
+            })
+
+            local codelens_augroup = vim.api.nvim_create_augroup('kickstart-lsp-codelens', { clear = false })
+            vim.api.nvim_create_autocmd({ 'BufEnter', 'CursorHold', 'InsertLeave' }, {
+              buffer = event.buf,
+              group = codelens_augroup,
+              callback = function()
+                vim.lsp.codelens.enable(true, { bufnr = event.bufnr })
+              end,
             })
 
             vim.api.nvim_create_autocmd('LspDetach', {
@@ -691,8 +712,19 @@ require('lazy').setup({
           }
         end
       end,
+      formatters = {
+        -- Odinfmt gets its configuration from odinfmt.json. It defaults
+        -- writing to stdout but needs to be told to read from stdin
+        odinfmt = {
+          -- Change where to find the command if it isn't in your path.
+          command = 'odinfmt',
+          args = { '-stdin' },
+          stdin = true,
+        },
+      },
       formatters_by_ft = {
         lua = { 'stylua' },
+        odin = { 'odinfmt' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -732,6 +764,19 @@ require('lazy').setup({
           },
         },
         opts = {},
+        config = function()
+          local luasnip = require 'luasnip'
+
+          -- auto-unlink snippets when cursor leaves them
+          vim.api.nvim_create_autocmd('CursorMoved', {
+            callback = function()
+              local buf = vim.api.nvim_get_current_buf()
+              if luasnip.session.current_nodes[buf] and not luasnip.jumpable(1) and not luasnip.jumpable(-1) then
+                luasnip.unlink_current()
+              end
+            end,
+          })
+        end,
       },
       'folke/lazydev.nvim',
     },
@@ -971,9 +1016,11 @@ require('lazy').setup({
   require 'kickstart.plugins.neo-tree',
   require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
   require 'custom.plugins.neotest',
+  require 'custom.plugins.nvim-coverage',
   require 'custom.plugins.neogit',
   require 'custom.plugins.oil',
   require 'custom.plugins.grug-far',
+  require 'custom.plugins.trouble',
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
