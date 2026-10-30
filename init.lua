@@ -973,6 +973,7 @@ require('lazy').setup({
   require 'custom.plugins.neotest',
   require 'custom.plugins.neogit',
   require 'custom.plugins.oil',
+  require 'custom.plugins.grug-far',
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
